@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════
+// قواعد تخزين الصور (Firebase Storage — تحتاج خطة Blaze)
+// صور القطع: يقرأها الجميع (موقع الزبائن)، يرفعها الموظف/المدير فقط
+// النسخ الاحتياطية: لا أحد من المتصفح — فقط الدالة السحابية (Admin SDK)
+// ═══════════════════════════════════════════════════════════
+service firebase.storage {
+  match /b/{bucket}/o {
+    function ownerUids() { return ['gDgF5lS4GzdhDbZDZQKGyM2ytnv2']; }
+    function userDoc() { return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)); }
+    function isStaff() {
+      return request.auth != null && (request.auth.uid in ownerUids()
+        || (userDoc().data.role in ['admin', 'staff'] && userDoc().data.get('mustChangePassword', false) != true));
+    }
+
+    match /products/{pid}/{file} {
+      allow read: if true;
+      allow create, update: if isStaff()
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && file.matches('(full|thumb|test)_[0-9]+\\.jpg');
+      allow delete: if isStaff();
+    }
+
+    match /backups/{file=**} { allow read, write: if false; }
+    match /{path=**} { allow read, write: if false; }
+  }
+}

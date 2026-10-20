@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.firebase/
+*.log
+functions/.runtimeconfig.json
+.claude/
+**/creds.json
+# النسخ الاحتياطية فيها بيانات الزبائن والأسعار — لا تُرفع لـ GitHub أبداً
+*backup*.json
+نسخة-احتياطية-*.json
+أرشيف-السجل-*.json
+backups/
+backup-out/

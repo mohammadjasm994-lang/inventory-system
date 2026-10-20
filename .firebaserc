@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "mohammad-jasm"
+  },
+  "targets": {
+    "mohammad-jasm": {
+      "hosting": {
+        "store": ["mohammad-jasm"],
+        "admin": ["mohammad-jasm-admin"]
+      }
+    }
+  }
+}

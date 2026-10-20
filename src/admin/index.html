@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لوحة إدارة المخزن</title>
+<meta name="theme-color" content="#e8890c">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="إدارة المخزن">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common/ui.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div id="loading" class="loading-screen"><div class="spinner"></div></div>
+
+<!-- ═══ الدخول ═══ -->
+<div id="authScreen" class="auth-wrap hidden">
+  <div class="card auth-card">
+    <div class="logo">📦</div>
+    <h2 style="text-align:center;font-weight:900">لوحة إدارة المخزن</h2>
+    <p class="muted small" style="text-align:center;margin-bottom:18px">للمشرفين والموظفين فقط</p>
+    <form id="loginForm">
+      <div class="field"><label class="f">البريد الإلكتروني</label><input id="loginEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label class="f">كلمة المرور</label><input id="loginPass" type="password" autocomplete="current-password" required></div>
+      <button class="btn primary block" id="loginBtn" type="submit">تسجيل الدخول</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ بانتظار الموافقة ═══ -->
+<div id="pendingScreen" class="auth-wrap hidden">
+  <div class="card auth-card" style="text-align:center">
+    <div class="logo">⏳</div>
+    <h3>حسابك بانتظار موافقة المالك</h3>
+    <p class="muted mt">تم تسجيل دخولك بالإيميل <b id="pendingEmail"></b>. اطلب من مالك النظام تفعيل صلاحيتك.</p>
+    <button class="btn ghost block mt" data-action="logout">تسجيل الخروج</button>
+  </div>
+</div>
+
+<!-- ═══ تغيير كلمة المرور المؤقتة (أول دخول) ═══ -->
+<div id="pwScreen" class="auth-wrap hidden">
+  <div class="card auth-card">
+    <div class="logo">🔑</div>
+    <h3 style="text-align:center">اختر كلمة مرور خاصة فيك</h3>
+    <p class="muted small mb" style="text-align:center">هذا أول دخول لك. كلمة المرور الحالية مؤقتة — اختر كلمة مرور جديدة لا يعرفها غيرك.</p>
+    <form id="pwForm">
+      <div class="field"><label class="f">كلمة المرور الجديدة (8 أحرف أو أكثر)</label><input name="p1" type="password" minlength="8" required autocomplete="new-password"></div>
+      <div class="field"><label class="f">أعد كتابتها</label><input name="p2" type="password" minlength="8" required autocomplete="new-password"></div>
+      <button class="btn primary block" type="submit">حفظ والدخول</button>
+    </form>
+    <button class="btn ghost block mt" data-action="logout">تسجيل الخروج</button>
+  </div>
+</div>
+
+<!-- ═══ التطبيق ═══ -->
+<div id="app" class="hidden">
+  <aside id="sidebar">
+    <div class="side-brand"><div class="logo sm">📦</div><div style="min-width:0"><b id="brandName" class="ellipsis">المخزن</b><div class="muted small">لوحة الإدارة</div></div></div>
+    <nav id="nav"></nav>
+    <div class="side-user">
+      <div class="avatar" id="uAvatar">م</div>
+      <div class="grow" style="min-width:0"><b id="uName" class="ellipsis"></b><div class="muted small" id="uRole"></div></div>
+      <button class="btn icon ghost" data-action="my-password" title="تغيير كلمة المرور">🔑</button>
+      <button class="btn icon ghost" data-action="logout" title="خروج">⎋</button>
+    </div>
+  </aside>
+  <div id="sideOverlay"></div>
+
+  <main id="main">
+    <header class="topbar">
+      <button class="btn icon ghost mobile-only" data-action="menu" aria-label="القائمة">☰</button>
+      <h1 id="pageTitle">الرئيسية</h1>
+      <span class="spacer"></span>
+      <button class="btn ghost sm hide-sm" data-action="quick-find" title="بحث سريع (Ctrl+K)">🔍 بحث سريع <kbd>Ctrl K</kbd></button>
+      <span id="netStatus" class="badge b-green">● متصل</span>
+      <button class="btn icon ghost" data-action="help" title="مساعدة هذه الصفحة" aria-label="مساعدة">❓</button>
+      <button class="btn icon ghost" data-action="theme" title="الوضع الليلي">◐</button>
+    </header>
+    <div id="pages"></div>
+  </main>
+
+  <nav id="bottomNav" class="mobile-only"></nav>
+</div>
+
+<!-- نوافذ تُبنى ديناميكياً -->
+<div id="modals"></div>
+<div id="printArea" class="print-area"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+<script src="common/firebase.js"></script>
+<script src="common/utils.js"></script>
+<script src="js/core.js"></script>
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/p-products.js"></script>
+<script src="js/p-sale.js"></script>
+<script src="js/p-invoices.js"></script>
+<script src="js/p-quotes.js"></script>
+<script src="js/p-customers.js"></script>
+<script src="js/p-purchases.js"></script>
+<script src="js/p-ledger.js"></script>
+<script src="js/p-cleanup.js"></script>
+<script src="js/p-reports.js"></script>
+<script src="js/p-misc.js"></script>
+<script src="js/p-admin.js"></script>
+<script src="js/p-pro.js"></script>
+<script src="js/ai.js"></script>
+  <script src="js/help.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

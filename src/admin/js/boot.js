@@ -1,0 +1,3 @@
+// ═══ تشغيل ═══
+netBadge();
+registerSW();

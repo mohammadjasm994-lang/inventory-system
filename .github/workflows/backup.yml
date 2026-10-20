@@ -1,0 +1,35 @@
+# نسخة احتياطية يومية تلقائية (مجانية — بديل خطة Blaze)
+# الساعة 3 فجراً بتوقيت بغداد. تُحفظ في: Actions ← Daily backup ← آخر تشغيل ← Artifacts (30 يوماً)
+# يحتاج نفس السر FIREBASE_SERVICE_ACCOUNT. المستودع يجب أن يكون خاصاً (Private).
+name: Daily backup
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: أخذ النسخة
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node scripts/backup.js
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: حفظ الملف
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-backup
+          path: backup-out/*.json
+          retention-days: 30
+          compression-level: 9

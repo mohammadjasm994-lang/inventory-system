@@ -1,0 +1,138 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════
+// قواعد الحماية — نظام إدارة المخزن v3
+// 👑 المالك: كل شيء + إدارة الحسابات — ولا أحد يقدر يغير حسابه
+// 🛡 مدير: كل شيء عدا الحسابات
+// 👷 موظف: البيع، المنتجات، الزبائن، الجرد — بدون حذف أو إعدادات أو مشتريات
+// 🌍 زائر: كتالوج الزبائن فقط (بدون أسعار الشراء والكميات)
+// ═══════════════════════════════════════════════════════════
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function ownerUids() { return ['gDgF5lS4GzdhDbZDZQKGyM2ytnv2']; }
+    function isOwner() { return signedIn() && request.auth.uid in ownerUids(); }
+    function myDoc() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function myData() { return get(myDoc()).data; }
+    function myRole() { return exists(myDoc()) ? myData().role : ''; }
+    function activeStaff() { return exists(myDoc()) && myData().get('mustChangePassword', false) != true; }
+    function isAdmin() { return isOwner() || (signedIn() && myRole() == 'admin' && activeStaff()); }
+    function isStaff() { return isOwner() || (signedIn() && myRole() in ['admin', 'staff'] && activeStaff()); }
+    function onlyKeys(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function stamped() { return request.resource.data.by == request.auth.token.email; }
+
+    // ── الحسابات: المالك فقط يديرها ──
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isOwner());
+      allow create: if signedIn() && request.auth.uid == uid
+        && (request.resource.data.role in ['customer', 'pending'] || isOwner());
+      allow update: if (isOwner() && !(uid in ownerUids()))
+        || (signedIn() && request.auth.uid == uid
+            && onlyKeys(['name', 'phone', 'email', 'mustChangePassword', 'lastLoginAt'])
+            && request.resource.data.get('mustChangePassword', false) == false);
+      allow delete: if isOwner() && !(uid in ownerUids());
+    }
+
+    // ── عام: الزبائن يقرأون الكتالوج المضغوط فقط ──
+    match /catalogPacks/{id} { allow read: if true; allow write: if isStaff(); }
+    match /catalog/{id} { allow read: if true; allow write: if isStaff(); }
+    match /publicSettings/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /images/{id} {
+      allow read: if true;
+      allow create, update: if isStaff() && request.resource.data.data is string && request.resource.data.data.size() < 900000;
+      allow delete: if isStaff();
+    }
+
+    // ── المنتجات ──
+    match /products/{id} {
+      allow read: if isStaff();
+      // الموظف لا يحدد سعر الشراء عند الإضافة
+      allow create: if isAdmin() || (isStaff() && request.resource.data.get('cost', 0) == 0 && request.resource.data.get('costUsd', 0) == 0);
+      // الموظف لا يستطيع الحذف/الاسترجاع، ولا تغيير سعر الشراء (التكلفة)
+      allow update: if isAdmin() || (isStaff()
+        && request.resource.data.get('deleted', false) == resource.data.get('deleted', false)
+        && request.resource.data.get('cost', 0) == resource.data.get('cost', 0)
+        && request.resource.data.get('costUsd', 0) == resource.data.get('costUsd', 0));
+      allow delete: if isOwner();
+    }
+    // عدّادات أرقام الفواتير المتسلسلة
+    match /counters/{id} {
+      allow read: if isStaff();
+      // كل كتابة تزيد العدّاد بواحد فقط (لا يمكن إرجاعه أو القفز)
+      allow create: if isStaff() && request.resource.data.next == 1;
+      allow update: if isStaff() && request.resource.data.next == resource.data.next + 1;
+    }
+    // المنتجات المحذوفة نهائياً (للمزامنة الجزئية)
+    match /tombstones/{id} { allow read: if isStaff(); allow create: if isOwner(); allow update, delete: if false; }
+    // تسجيل أخطاء الأجهزة
+    match /errors/{id} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.msg is string && request.resource.data.msg.size() < 2000;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+    match /warehouses/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+
+    // ── المبيعات ──
+    match /invoices/{id} {
+      allow read, create: if isStaff();
+      // المرتجع مسموح للموظف، الإلغاء الكامل للمدير فقط
+      allow update: if isAdmin() || (isStaff() && onlyKeys(['returns', 'returnedTotal', 'returnedProfit']));
+      allow delete: if false;
+    }
+    match /quotes/{id} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    match /customers/{id} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    match /payments/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff() && stamped()
+        && (request.resource.data.kind == 'customer' || isAdmin())
+        && (request.resource.data.type != 'adjust' || isAdmin());
+      allow update, delete: if false;
+    }
+
+    // ── المشتريات والموردين: للمدير ──
+    match /purchases/{id} { allow read, create, update: if isAdmin(); allow delete: if false; }
+    match /porders/{id} { allow read, write: if isAdmin(); }
+    match /expenses/{id} { allow read, write: if isAdmin(); }
+    // إغلاق الصندوق: الموظف يسجّل، التعديل للمدير
+    match /closings/{id} { allow read, create: if isStaff(); allow update, delete: if isAdmin(); }
+    match /suppliers/{id} { allow read, create, update: if isAdmin(); allow delete: if isAdmin(); }
+
+    // ── المخزون: سجل الحركات إضافة فقط ──
+    match /stockMoves/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff() && stamped();
+      allow update, delete: if false;
+    }
+    match /stocktakes/{id} {
+      allow read, create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    match /stats/{id} { allow read, write: if isStaff(); }
+    match /bulkOps/{id} { allow read, create, update: if isAdmin(); allow delete: if false; }
+
+    // ── الإدارة ──
+    match /settings/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin() || (isStaff() && id == 'meta');
+    }
+    match /logs/{id} {
+      allow create: if isStaff() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+      allow update: if false;
+      // أرشفة: المالك فقط يحذف السجلات الأقدم من سنة (بعد تحميلها كملف)
+      allow delete: if isOwner() && resource.data.at < request.time - duration.value(365, 'd');
+    }
+    match /orders/{id} { allow read, write: if isAdmin(); }
+    match /aiUsage/{id} { allow read, write: if false; }
+
+    // ── النظام القديم: أرشيف للقراءة فقط ──
+    match /store/{id} { allow read: if isAdmin(); allow write: if false; }
+  }
+}

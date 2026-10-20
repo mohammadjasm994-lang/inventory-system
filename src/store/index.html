@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>كتالوج القطع</title>
+<meta name="description" content="كتالوج قطع الغيار: بلبرينات، مواد كهربائية وإلكترونية — ابحث برقم القطعة">
+<meta name="theme-color" content="#0f1d33">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common/ui.css">
+<link rel="stylesheet" href="store.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="topline">
+      <div class="brand">
+        <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4.6" r="1.4"/><circle cx="12" cy="19.4" r="1.4"/><circle cx="4.6" cy="12" r="1.4"/><circle cx="19.4" cy="12" r="1.4"/></svg></div>
+        <div><b id="shopName">مخزن قطع الغيار</b><span id="shopSub"></span></div>
+      </div>
+      <div class="top-actions">
+        <a id="callBtn" class="pill hidden" href="#">📞 <span class="num" id="callNum"></span></a>
+        <button class="pill icon" data-action="theme" title="الوضع الليلي" aria-label="الوضع الليلي">◐</button>
+      </div>
+    </div>
+    <h1>ابحث عن القطعة اللي تحتاجها</h1>
+    <p class="lead">اكتب رقم القطعة أو اسمها — مثال: <button class="ex" data-ex="3RT1075">3RT1075</button> <button class="ex" data-ex="NU220">NU220</button> <button class="ex" data-ex="كونتاكتور">كونتاكتور</button></p>
+    <div class="bigsearch">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="رقم القطعة، الاسم، أو الماركة..." autocomplete="off" enterkeyhint="search">
+      <button id="qClear" class="clear hidden" aria-label="مسح">✕</button>
+    </div>
+    <div class="facts" id="facts"></div>
+  </div>
+</header>
+
+<nav class="filters" id="filters">
+  <div class="wrap">
+    <div class="tabs-cat" id="cats"></div>
+    <div class="row2">
+      <div class="brands" id="brands"></div>
+      <div class="opts">
+        <label class="toggle"><input type="checkbox" id="onlyStock"><span></span>المتوفر فقط</label>
+        <select id="sort" aria-label="ترتيب">
+          <option value="smart">الأنسب</option><option value="az">الاسم</option><option value="low">السعر: الأقل</option><option value="high">السعر: الأعلى</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="result-line"><span id="count"></span><button id="reset" class="linkbtn hidden">إلغاء الفلاتر</button></div>
+  <div class="grid" id="grid">
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+  </div>
+  <div id="more" class="more hidden"><button class="btn ghost" data-action="more">عرض المزيد</button></div>
+</main>
+
+<footer class="foot">
+  <div class="wrap" id="foot"></div>
+</footer>
+
+<div class="modal" id="mItem">
+  <div class="modal-card">
+    <div class="modal-head"><h3 id="itTitle"></h3><button class="x" data-close="mItem" aria-label="إغلاق">✕</button></div>
+    <div class="modal-body" id="itBody"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
+<script src="common/firebase.js"></script>
+<script src="common/utils.js"></script>
+<script src="store.js"></script>
+</body>
+</html>
